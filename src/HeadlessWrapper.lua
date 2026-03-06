@@ -354,8 +354,28 @@ if originalArgs[1] and originalArgs[2] then
 				end
 			end
 
-			-- Try to export build code (requires working Deflate function)
-			local buildCode = common.base64.encode(Deflate(build:SaveDB("code"))):gsub("+","-"):gsub("/","_")
+			-- Force a full recalculation regardless of skill group state
+			runCallback("OnFrame")
+
+			-- Export build code with calculated stats injected
+			local xmlText = build:SaveDB("code")
+
+			-- Inject PlayerStat elements from the calculated output
+			if build.calcsTab and build.calcsTab.buildOutput then
+				local statLines = {}
+				for stat, value in pairs(build.calcsTab.buildOutput) do
+					if type(value) == "number" then
+						table.insert(statLines, '\t\t<PlayerStat stat="' .. stat .. '" value="' .. tostring(value) .. '"/>')
+					end
+				end
+				if #statLines > 0 then
+					local statsBlock = table.concat(statLines, "\n")
+					-- Insert PlayerStat elements inside the <Build> tag
+					xmlText = xmlText:gsub("(</Build>)", statsBlock .. "\n\t%1")
+				end
+			end
+
+			local buildCode = common.base64.encode(Deflate(xmlText)):gsub("+","-"):gsub("/","_")
 			print(buildCode)
 			-- local f = io.open("/home/alexander/dev/investigations/PathOfBuilding/buildcode.txt", "w")
 			-- if f then
